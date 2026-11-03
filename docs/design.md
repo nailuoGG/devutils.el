@@ -43,6 +43,18 @@ ring.
 Inspection and generation commands never replace the region. They use the same
 result buffer and kill-ring destination.
 
+`dev-tools-json-diff` reads the current buffer and one selected buffer without
+modifying either source. It parses both documents, recursively sorts object
+keys, preserves array order, and opens two generated canonical buffers in
+Ediff. Ediff cleanup removes only the buffers created by that comparison.
+Invalid JSON stops before any generated buffer is created.
+
+Canonical JSON uses two-space indentation and one object member per line.
+Object keys use ascending string order at every nesting level. Array elements
+retain their original order and are compared by index. Primitive values retain
+their JSON types. Duplicate object keys follow the JSON parser's last-value
+behavior; callers must not use duplicate keys to represent distinct data.
+
 `dev-tools` uses `completing-read`; completion frontends such as Vertico can
 enhance it without becoming package dependencies.
 
@@ -58,13 +70,15 @@ enhance it without becoming package dependencies.
 | Inspection behavior | `dev-tools--inspect` |
 | Result buffer and kill ring | `dev-tools--show-result` |
 | JSON parsing and rendering | `dev-tools--json-*` |
+| JSON canonical key ordering | `dev-tools--json-render`, `dev-tools--json-canonicalize` |
+| JSON Ediff buffers and lifecycle | `dev-tools-json-diff`, `dev-tools--json-diff-buffer` |
 | HTML entity decoding | `dev-tools--html-decode` |
 
 ## Initial feature set
 
 | Category | Commands | Backend |
 | --- | --- | --- |
-| JSON | format, minify | `json.el` |
+| JSON | format, minify, semantic diff | `json.el`, Ediff |
 | Encoding | Base64 encode/decode | Emacs Base64 primitives |
 | Encoding | URL encode/decode | `url-util.el` |
 | Encoding | HTML entities | `xml.el`, `mm-url.el` |
@@ -103,8 +117,9 @@ configuration surface.
 
 ## Verification index
 
-`test/dev-tools-test.el` covers JSON round trips, failed-transform data safety,
-Base64 and URL Unicode round trips, HTML entities, and catalog command validity.
-Live verification must additionally exercise the completion entry point, a
-region replacement, a minibuffer-style result, and UUID generation in the
-running Emacs instance.
+`test/dev-tools-test.el` covers JSON round trips, recursive key ordering, array
+order, Ediff input and cleanup, failed-transform data safety, Base64 and URL
+Unicode round trips, HTML entities, and catalog command validity. Live
+verification must additionally exercise the completion entry point, a region
+replacement, a minibuffer-style result, JSON Ediff startup, and UUID generation
+in the running Emacs instance.

@@ -51,6 +51,7 @@ is an interactive command."
     ("Generate / Random number" . dev-tools-random-number)
     ("Generate / Random port" . dev-tools-random-port)
     ("Generate / UUID" . dev-tools-uuid)
+    ("JSON / Diff" . dev-tools-json-diff)
     ("JSON / Format" . dev-tools-json-format)
     ("JSON / Minify" . dev-tools-json-minify)
     ("Text / Capitalize" . dev-tools-capitalize)
@@ -127,6 +128,64 @@ region, show the result with `dev-tools--show-result'."
                   :null-object :null
                   :false-object :false))
 
+(defun dev-tools--json-render (value &optional depth)
+  "Render parsed JSON VALUE with sorted object keys at DEPTH."
+  (let ((depth (or depth 0)))
+    (cond
+     ((hash-table-p value)
+      (let (keys)
+        (maphash (lambda (key _value) (push key keys)) value)
+        (setq keys (sort keys #'string<))
+        (if keys
+            (concat
+             "{\n"
+             (mapconcat
+              (lambda (key)
+                (concat (make-string (* 2 (1+ depth)) ?\s)
+                        (json-serialize key)
+                        ": "
+                        (dev-tools--json-render (gethash key value) (1+ depth))))
+              keys
+              ",\n")
+             "\n" (make-string (* 2 depth) ?\s) "}")
+          "{}")))
+     ((vectorp value)
+      (if (> (length value) 0)
+          (concat
+           "[\n"
+           (mapconcat
+            (lambda (item)
+              (concat (make-string (* 2 (1+ depth)) ?\s)
+                      (dev-tools--json-render item (1+ depth))))
+            value
+            ",\n")
+           "\n" (make-string (* 2 depth) ?\s) "]")
+        "[]"))
+     (t
+      (json-serialize value :null-object :null :false-object :false)))))
+
+(defun dev-tools--json-canonicalize (input)
+  "Return canonical JSON for INPUT with recursively sorted object keys."
+  (concat (dev-tools--json-render (dev-tools--json-parse input)) "\n"))
+
+(defun dev-tools--buffer-contents (buffer)
+  "Return all text in BUFFER without properties."
+  (with-current-buffer buffer
+    (save-restriction
+      (widen)
+      (buffer-substring-no-properties (point-min) (point-max)))))
+
+(defun dev-tools--json-diff-buffer (source text)
+  "Create a temporary JSON diff buffer for SOURCE containing TEXT."
+  (let ((buffer (generate-new-buffer
+                 (format "*Dev Tools JSON Diff: %s*" (buffer-name source)))))
+    (with-current-buffer buffer
+      (insert text)
+      (when (fboundp 'js-json-mode)
+        (js-json-mode))
+      (setq buffer-read-only t))
+    buffer))
+
 (defun dev-tools--html-decode (input)
   "Decode HTML entities in INPUT."
   (require 'mm-url)
@@ -141,6 +200,49 @@ region, show the result with `dev-tools--show-result'."
                                 'dev-tools-history))
          (command (alist-get name tools nil nil #'string=)))
     (call-interactively command)))
+
+;;;###autoload
+(defun dev-tools-json-diff (buffer-a buffer-b)
+  "Compare JSON in BUFFER-A and BUFFER-B after recursively sorting object keys."
+  (interactive
+   (let ((buffer-a (current-buffer)))
+     (list buffer-a
+           (read-buffer "Compare current JSON with buffer: "
+                        (other-buffer buffer-a t)
+                        t))))
+  (setq buffer-a (get-buffer buffer-a)
+        buffer-b (get-buffer buffer-b))
+  (unless (and (buffer-live-p buffer-a) (buffer-live-p buffer-b))
+    (user-error "Both JSON buffers must be live"))
+  (when (eq buffer-a buffer-b)
+    (user-error "Choose two different JSON buffers"))
+  (let ((text-a (dev-tools--json-canonicalize
+                 (dev-tools--buffer-contents buffer-a)))
+        (text-b (dev-tools--json-canonicalize
+                 (dev-tools--buffer-contents buffer-b)))
+        diff-a diff-b)
+    (condition-case error-data
+        (progn
+          (setq diff-a (dev-tools--json-diff-buffer buffer-a text-a)
+                diff-b (dev-tools--json-diff-buffer buffer-b text-b))
+          (require 'ediff)
+          (let ((buffers (list diff-a diff-b)))
+            (ediff-buffers
+             diff-a diff-b
+             (list
+              (lambda ()
+                (add-hook
+                 'ediff-cleanup-hook
+                 (lambda ()
+                   (dolist (buffer buffers)
+                     (when (buffer-live-p buffer)
+                       (kill-buffer buffer))))
+                 nil t))))))
+      (error
+       (dolist (buffer (list diff-a diff-b))
+         (when (buffer-live-p buffer)
+           (kill-buffer buffer)))
+       (signal (car error-data) (cdr error-data))))))
 
 ;;;###autoload
 (defun dev-tools-json-format ()

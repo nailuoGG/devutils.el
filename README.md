@@ -28,7 +28,7 @@ Add existing interactive commands without changing the package:
 
 ## Included tools
 
-- JSON formatting and minification
+- JSON formatting, minification, and semantic diff
 - Base64, URL, and HTML entity encoding and decoding
 - Text hashing, case conversion, and statistics
 - Unix timestamp conversion
@@ -36,6 +36,17 @@ Add existing interactive commands without changing the package:
 
 UUID generation calls the system `uuidgen` command. HTML entity decoding uses
 Emacs's built-in `mm-url` entity table.
+
+## JSON diff
+
+Open both JSON documents as buffers, switch to the buffer that should appear on
+the left, and run `M-x dev-tools-json-diff`. Select the other buffer when
+prompted. The command recursively sorts object keys, preserves array order, and
+opens the canonical JSON buffers in Ediff. Quitting Ediff removes only the two
+temporary buffers created for that comparison.
+
+Invalid JSON stops the command before Ediff starts and leaves both source
+buffers unchanged.
 
 ## Design and development
 
