@@ -83,3 +83,8 @@ Run tests from an existing Emacs server:
 ```sh
 emacsclient --eval '(progn (add-to-list (quote load-path) "/path/to/devutils.el") (load "/path/to/devutils.el/test/devutils-test.el" nil t) (ert-stats-completed-unexpected (ert-run-tests "^devutils-test-" (lambda (&rest _event) nil))))'
 ```
+
+## License
+
+Copyright (C) 2026 Jiale Liu. This project is licensed under the GNU General
+Public License version 3 only. See [LICENSE](LICENSE).

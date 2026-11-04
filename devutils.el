@@ -1,6 +1,7 @@
 ;;; devutils.el --- Unified entry point for developer utilities -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026 Jiale Liu
+;; SPDX-License-Identifier: GPL-3.0-only
 
 ;; Author: Jiale Liu
 ;; Version: 0.2.0
